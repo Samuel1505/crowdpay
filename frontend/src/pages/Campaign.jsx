@@ -3,11 +3,12 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ContributeModal from '../components/ContributeModal';
+import WithdrawalsSection from '../components/WithdrawalsSection';
 
 export default function Campaign() {
   const { id } = useParams();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [contributions, setContributions] = useState([]);
@@ -117,6 +118,17 @@ export default function Campaign() {
         <span style={styles.walletLabel}>Campaign wallet</span>
         <code style={styles.walletKey}>{campaign.wallet_public_key}</code>
       </div>
+
+      {token && (
+        <WithdrawalsSection
+          campaign={campaign}
+          user={user}
+          token={token}
+          onReleased={() => {
+            api.getCampaign(id).then(setCampaign).catch(() => {});
+          }}
+        />
+      )}
 
       <h2 style={styles.sectionTitle}>Contributions ({contributions.length})</h2>
       {contributions.length === 0 ? (

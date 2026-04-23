@@ -59,4 +59,16 @@ export const api = {
     request('GET', '/contributions/quote', null, token, {
       query: { send_asset, dest_asset, dest_amount },
     }),
+
+  getWithdrawalCapabilities: (token) => request('GET', '/withdrawals/capabilities', null, token),
+  listWithdrawals: (campaignId, token) =>
+    request('GET', `/withdrawals/campaign/${campaignId}`, null, token),
+  requestWithdrawal: (body, token) => request('POST', '/withdrawals/request', body, token),
+  approveWithdrawalCreator: (id, token) =>
+    request('POST', `/withdrawals/${id}/approve/creator`, {}, token),
+  approveWithdrawalPlatform: (id, token) =>
+    request('POST', `/withdrawals/${id}/approve/platform`, {}, token),
+  cancelWithdrawal: (id, body, token) => request('POST', `/withdrawals/${id}/cancel`, body || {}, token),
+  rejectWithdrawal: (id, body, token) => request('POST', `/withdrawals/${id}/reject`, body || {}, token),
+  getWithdrawalEvents: (id, token) => request('GET', `/withdrawals/${id}/events`, null, token),
 };
