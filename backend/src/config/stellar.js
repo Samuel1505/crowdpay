@@ -11,4 +11,30 @@ const networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC;
 // USDC asset — issuer differs between testnet and mainnet
 const USDC = new Asset('USDC', process.env.USDC_ISSUER);
 
-module.exports = { server, networkPassphrase, USDC, isTestnet };
+function parseAdditionalAssets() {
+  if (!process.env.STELLAR_EXTRA_ASSETS) return {};
+  try {
+    const parsed = JSON.parse(process.env.STELLAR_EXTRA_ASSETS);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    throw new Error('STELLAR_EXTRA_ASSETS must be valid JSON object: {"CODE":"ISSUER"}');
+  }
+}
+
+const configuredAssets = {
+  XLM: { type: 'native' },
+  USDC: { type: 'credit_alphanum4', issuer: process.env.USDC_ISSUER },
+};
+
+for (const [code, issuer] of Object.entries(parseAdditionalAssets())) {
+  if (code === 'XLM' || code === 'USDC') continue;
+  configuredAssets[code] = { type: 'credit_alphanum12', issuer };
+}
+
+module.exports = {
+  server,
+  networkPassphrase,
+  USDC,
+  isTestnet,
+  configuredAssets,
+};

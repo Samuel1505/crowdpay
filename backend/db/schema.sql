@@ -33,6 +33,12 @@ CREATE TABLE contributions (
   sender_public_key   TEXT NOT NULL,
   amount              NUMERIC(20, 7) NOT NULL,
   asset               TEXT NOT NULL,
+  payment_type        TEXT NOT NULL DEFAULT 'payment'
+                        CHECK (payment_type IN ('payment', 'path_payment_strict_receive')),
+  source_amount       NUMERIC(20, 7),
+  source_asset        TEXT,
+  conversion_rate     NUMERIC(30, 15),
+  path                JSONB,
   tx_hash             TEXT UNIQUE NOT NULL,  -- deduplicate by Stellar transaction hash
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );

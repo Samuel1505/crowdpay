@@ -1,8 +1,13 @@
 const router = require('express').Router();
 const db = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
-const { createCampaignWallet, getCampaignBalance } = require('../services/stellarService');
+const {
+  createCampaignWallet,
+  getCampaignBalance,
+  getSupportedAssetCodes,
+} = require('../services/stellarService');
 const { watchCampaignWallet } = require('../services/ledgerMonitor');
+const SUPPORTED_ASSETS = getSupportedAssetCodes();
 
 // List all active campaigns
 router.get('/', async (req, res) => {
@@ -38,8 +43,10 @@ router.post('/', requireAuth, async (req, res) => {
   if (!title || !target_amount || !asset_type) {
     return res.status(400).json({ error: 'title, target_amount and asset_type are required' });
   }
-  if (!['XLM', 'USDC'].includes(asset_type)) {
-    return res.status(400).json({ error: 'asset_type must be XLM or USDC' });
+  if (!SUPPORTED_ASSETS.includes(asset_type)) {
+    return res.status(400).json({
+      error: `asset_type must be one of: ${SUPPORTED_ASSETS.join(', ')}`,
+    });
   }
 
   // Get creator's public key to add as campaign wallet signer

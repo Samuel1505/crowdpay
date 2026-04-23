@@ -16,9 +16,34 @@ const {
   BASE_FEE,
   Memo,
 } = require('@stellar/stellar-sdk');
-const { server, networkPassphrase, USDC, isTestnet } = require('../config/stellar');
+const {
+  server,
+  networkPassphrase,
+  USDC,
+  isTestnet,
+  configuredAssets,
+} = require('../config/stellar');
 
 const PLATFORM_KEYPAIR = Keypair.fromSecret(process.env.PLATFORM_SECRET_KEY);
+
+function toStellarAsset(assetCode) {
+  if (assetCode === 'XLM') return Asset.native();
+  if (assetCode === 'USDC') return USDC;
+  if (configuredAssets[assetCode]?.issuer) {
+    return new Asset(assetCode, configuredAssets[assetCode].issuer);
+  }
+  throw new Error(`Unsupported asset: ${assetCode}`);
+}
+
+function getSupportedAssetCodes() {
+  return Object.keys(configuredAssets);
+}
+
+function normalizeAsset(record) {
+  if (!record) return null;
+  if (record.asset_type === 'native') return 'XLM';
+  return record.asset_code;
+}
 
 /**
  * Create a new Stellar account for a campaign.
@@ -100,7 +125,7 @@ async function submitPayment({ senderSecret, destinationPublicKey, asset, amount
   const senderKeypair = Keypair.fromSecret(senderSecret);
   const senderAccount = await server.loadAccount(senderKeypair.publicKey());
 
-  const stellarAsset = asset === 'XLM' ? Asset.native() : USDC;
+  const stellarAsset = toStellarAsset(asset);
 
   const tx = new TransactionBuilder(senderAccount, {
     fee: BASE_FEE,
@@ -138,7 +163,7 @@ async function submitPathPayment({
   const senderKeypair = Keypair.fromSecret(senderSecret);
   const senderAccount = await server.loadAccount(senderKeypair.publicKey());
 
-  const sourceStellarAsset = sendAsset === 'XLM' ? Asset.native() : USDC;
+  const sourceStellarAsset = toStellarAsset(sendAsset);
 
   const tx = new TransactionBuilder(senderAccount, {
     fee: BASE_FEE,
@@ -151,7 +176,7 @@ async function submitPathPayment({
         destination: destinationPublicKey,
         destAsset: USDC,
         destAmount: String(destAmount),
-        path: [], // Stellar auto-discovers path
+        path: [], // empty path lets Stellar use direct market routing
       })
     )
     .addMemo(Memo.text(memo || 'crowdpay'))
@@ -161,6 +186,33 @@ async function submitPathPayment({
   tx.sign(senderKeypair);
   const result = await server.submitTransaction(tx);
   return result.hash;
+}
+
+/**
+ * Get a path payment quote for strict-receive contribution flow.
+ * Returns candidate conversion paths from Stellar DEX.
+ */
+async function getPathPaymentQuote({ sendAsset, destAsset, destAmount }) {
+  const sourceStellarAsset = toStellarAsset(sendAsset);
+  const destinationStellarAsset = toStellarAsset(destAsset);
+
+  const response = await server
+    .strictReceivePaths(sourceStellarAsset, destinationStellarAsset, String(destAmount))
+    .call();
+
+  return (response.records || []).map((record) => ({
+    source_asset: normalizeAsset({
+      asset_type: record.source_asset_type,
+      asset_code: record.source_asset_code,
+    }),
+    destination_asset: normalizeAsset({
+      asset_type: record.destination_asset_type,
+      asset_code: record.destination_asset_code,
+    }),
+    destination_amount: record.destination_amount,
+    source_amount: record.source_amount,
+    path: (record.path || []).map((pathAsset) => normalizeAsset(pathAsset)),
+  }));
 }
 
 /**
@@ -174,7 +226,7 @@ async function buildWithdrawalTransaction({
   asset,
 }) {
   const campaignAccount = await server.loadAccount(campaignWalletPublicKey);
-  const stellarAsset = asset === 'XLM' ? Asset.native() : USDC;
+  const stellarAsset = toStellarAsset(asset);
 
   const tx = new TransactionBuilder(campaignAccount, {
     fee: BASE_FEE,
@@ -219,8 +271,11 @@ async function friendbotFund(publicKey) {
 
 module.exports = {
   createCampaignWallet,
+  toStellarAsset,
+  getSupportedAssetCodes,
   submitPayment,
   submitPathPayment,
+  getPathPaymentQuote,
   buildWithdrawalTransaction,
   getCampaignBalance,
   friendbotFund,

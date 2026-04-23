@@ -71,6 +71,7 @@ crowdpay/
 │   │   ├── routes/       # REST API routes
 │   │   ├── services/     # Stellar SDK interactions, ledger monitoring
 │   │   └── middleware/   # Auth
+│   ├── API.md            # Contribution/path-payment API reference
 │   └── db/
 │       └── schema.sql    # PostgreSQL schema
 ├── frontend/             # React (Vite) — campaign UI
@@ -145,6 +146,7 @@ cp .env.example .env
 ```bash
 psql -U postgres -c "CREATE DATABASE crowdpay;"
 psql -U postgres -d crowdpay -f db/schema.sql
+# For existing deployments, apply migration files in backend/db/migrations in order.
 ```
 
 ### 4. Fund your platform account on testnet
