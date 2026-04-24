@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const db = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
+const logger = require('../config/logger');
+const { sendAlert } = require('../services/alerting');
 const {
   prepareSignedContributionPayment,
   prepareSignedContributionPathPayment,
@@ -169,7 +171,7 @@ router.post('/', requireAuth, async (req, res) => {
       secret: senderSecret,
     });
   } catch (err) {
-    console.error('[contributions] Custodial account setup failed:', err.message);
+    logger.error('Custodial account setup failed', { campaign_id, error: err.message });
     return res.status(503).json({
       error: 'Wallet setup is still completing; please retry in a few seconds.',
     });
@@ -248,7 +250,8 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     txHash = await submitPreparedTransaction(signedXdr);
   } catch (err) {
-    console.error('[contributions] Stellar submit failed:', err.message);
+    logger.error('Stellar transaction submission failed', { campaign_id, error: err.message });
+    sendAlert('Stellar transaction submission failed', { campaign_id, error: err.message });
     return res.status(502).json({
       error: 'Stellar network rejected the transaction',
       detail: err.message || String(err),

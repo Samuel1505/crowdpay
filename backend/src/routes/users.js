@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { Keypair } = require('@stellar/stellar-sdk');
 const db = require('../config/database');
+const logger = require('../config/logger');
 const { ensureCustodialAccountFundedAndTrusted } = require('../services/stellarService');
 const { sendEmail } = require('../services/emailService');
 
@@ -43,9 +44,13 @@ router.post('/register', authLimiter, async (req, res) => {
 
   const publicKey = keypair.publicKey();
   const secret = keypair.secret();
+  const requestId = req.id;
   setImmediate(() => {
     ensureCustodialAccountFundedAndTrusted({ publicKey, secret }).catch((err) => {
-      console.error('[users] Background Stellar funding/trustlines failed:', err.message);
+      logger.error('Background Stellar funding/trustlines failed', {
+        request_id: requestId,
+        error: err.message,
+      });
     });
 
     sendEmail({

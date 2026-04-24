@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const logger = require('../config/logger');
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -10,7 +11,8 @@ function requireAuth(req, res, next) {
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
-  } catch {
+  } catch (err) {
+    logger.warn('Invalid or expired token', { error: err.message });
     res.status(401).json({ error: 'Invalid token' });
   }
 }
