@@ -42,7 +42,7 @@ export default function Home() {
     <main className="container" style={{ paddingTop: '1.5rem', paddingBottom: '4rem' }}>
       {welcomeNewUser && (
         <div className="alert alert--success" style={{ marginBottom: '1rem' }} role="status">
-          <strong>Welcome to CrowdPay.</strong> Your account includes a custodial Stellar wallet. Explore active
+          <strong>Welcome to CrowdPay.</strong> Your account includes a custodial Stellar wallet. Follow the instructions sent to your email to get started. Explore active
           campaigns and fund one in seconds.
           <button
             type="button"

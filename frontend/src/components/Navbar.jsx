@@ -18,6 +18,7 @@ export default function Navbar() {
         <div className="nav-links">
           {user ? (
             <>
+              {user.is_admin && <Link to="/admin" style={styles.link}>Admin</Link>}
               <Link to="/campaigns/new" style={styles.link}>Start Campaign</Link>
               <span style={styles.name}>{user.name}</span>
               <button onClick={handleLogout} className="btn-secondary" style={{ padding: '0.4rem 0.9rem' }}>

@@ -9,6 +9,7 @@ CREATE TABLE users (
   name                    TEXT NOT NULL,
   wallet_public_key       TEXT UNIQUE NOT NULL,
   wallet_secret_encrypted TEXT NOT NULL,  -- encrypt with KMS in production
+  is_admin                BOOLEAN DEFAULT FALSE,
   created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 

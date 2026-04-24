@@ -73,4 +73,9 @@ export const api = {
   cancelWithdrawal: (id, body, token) => request('POST', `/withdrawals/${id}/cancel`, body || {}, token),
   rejectWithdrawal: (id, body, token) => request('POST', `/withdrawals/${id}/reject`, body || {}, token),
   getWithdrawalEvents: (id, token) => request('GET', `/withdrawals/${id}/events`, null, token),
+
+  getAdminStats: (token) => request('GET', '/admin/stats', null, token),
+  getAdminCampaigns: (token) => request('GET', '/admin/campaigns', null, token),
+  getAdminUsers: (token) => request('GET', '/admin/users', null, token),
+  updateCampaignStatus: (id, status, token) => request('PATCH', `/admin/campaigns/${id}/status`, { status }, token),
 };

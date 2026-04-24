@@ -10,6 +10,7 @@ const {
   ensureCustodialAccountFundedAndTrusted,
 } = require('../services/stellarService');
 const { insertContributionSubmitted } = require('../services/stellarTransactionService');
+const { sendEmail } = require('../services/emailService');
 
 const SLIPPAGE_BPS = 500; // 5.00%
 const SUPPORTED_ASSETS = getSupportedAssetCodes();
@@ -147,7 +148,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   // Load campaign
   const { rows: campaigns } = await db.query(
-    'SELECT * FROM campaigns WHERE id = $1 AND status = $2',
+    'SELECT c.*, u.email as creator_email FROM campaigns c JOIN users u ON c.creator_id = u.id WHERE c.id = $1 AND c.status = $2',
     [campaign_id, 'active']
   );
   if (!campaigns.length) return res.status(404).json({ error: 'Campaign not found' });
@@ -268,6 +269,22 @@ router.post('/', requireAuth, async (req, res) => {
     stellar_transaction_id: stellarTransactionId,
     message: 'Transaction submitted',
     conversion_quote: conversionQuote,
+  });
+
+  setImmediate(() => {
+    sendEmail({
+      to: campaign.creator_email,
+      subject: `New Contribution to ${campaign.title}`,
+      text: `You just received a contribution of ${amount} ${send_asset} from public key: ${contributorPublicKey}.`
+    });
+
+    if (Number(campaign.raised_amount) + Number(amount) >= Number(campaign.target_amount)) {
+      sendEmail({
+        to: campaign.creator_email,
+        subject: `Target Reached for ${campaign.title}!`,
+        text: `Congratulations! Your campaign "${campaign.title}" has reached its target of ${campaign.target_amount} ${campaign.asset_type}. You can now start the withdrawal process.`
+      });
+    }
   });
 });
 

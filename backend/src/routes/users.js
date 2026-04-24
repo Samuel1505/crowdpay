@@ -1,12 +1,22 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { Keypair } = require('@stellar/stellar-sdk');
 const db = require('../config/database');
 const { ensureCustodialAccountFundedAndTrusted } = require('../services/stellarService');
+const { sendEmail } = require('../services/emailService');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Register — creates user + custodial Stellar keypair
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { email, password, name } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'email, password and name are required' });
@@ -27,7 +37,7 @@ router.post('/register', async (req, res) => {
     // TODO: encrypt secret with KMS before storing in production
   );
 
-  const token = jwt.sign({ userId: rows[0].id }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId: rows[0].id, is_admin: false }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 
@@ -37,13 +47,19 @@ router.post('/register', async (req, res) => {
     ensureCustodialAccountFundedAndTrusted({ publicKey, secret }).catch((err) => {
       console.error('[users] Background Stellar funding/trustlines failed:', err.message);
     });
+
+    sendEmail({
+      to: email,
+      subject: 'Welcome to CrowdPay!',
+      text: `Welcome ${name}! Your custodial wallet public key is ${publicKey}.`
+    });
   });
 
   res.status(201).json({ token, user: rows[0] });
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
 
@@ -51,7 +67,7 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  const token = jwt.sign({ userId: rows[0].id }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId: rows[0].id, is_admin: rows[0].is_admin }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 
@@ -62,8 +78,15 @@ router.post('/login', async (req, res) => {
       email: rows[0].email,
       name: rows[0].name,
       wallet_public_key: rows[0].wallet_public_key,
+      is_admin: rows[0].is_admin,
     },
   });
+});
+
+// Forgot password
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  // Real implementation would send a reset link
+  res.json({ message: 'If that email exists, a password reset link has been sent.' });
 });
 
 module.exports = router;
