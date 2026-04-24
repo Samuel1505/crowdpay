@@ -9,6 +9,8 @@
 const { server } = require('../config/stellar');
 const db = require('../config/database');
 const { markContributionIndexed } = require('./stellarTransactionService');
+const logger = require('../config/logger');
+const { sendAlert } = require('./alerting');
 
 // Map of publicKey -> EventSource (so we can close them if needed)
 const activeStreams = new Map();
@@ -16,7 +18,7 @@ const activeStreams = new Map();
 async function watchCampaignWallet(campaignId, walletPublicKey) {
   if (activeStreams.has(walletPublicKey)) return;
 
-  console.log(`[monitor] Watching campaign ${campaignId} wallet ${walletPublicKey}`);
+  logger.info('Watching campaign wallet', { campaign_id: campaignId, wallet: walletPublicKey });
 
   const closeStream = server
     .payments()
@@ -25,7 +27,16 @@ async function watchCampaignWallet(campaignId, walletPublicKey) {
     .stream({
       onmessage: (payment) => handlePayment(campaignId, walletPublicKey, payment),
       onerror: (err) => {
-        console.error(`[monitor] Stream error for ${walletPublicKey}:`, err.message);
+        logger.error('Ledger stream error', {
+          campaign_id: campaignId,
+          wallet: walletPublicKey,
+          error: err.message || String(err),
+        });
+        sendAlert('Ledger monitor stream error', {
+          campaign_id: campaignId,
+          wallet: walletPublicKey,
+          error: err.message || String(err),
+        });
       },
     });
 
@@ -89,16 +100,23 @@ async function handlePayment(campaignId, walletPublicKey, payment) {
     await markContributionIndexed(client, txHash, inserted[0].id);
 
     await client.query('COMMIT');
-    console.log(
-      `[monitor] Contribution indexed: ${destinationAmount} ${destinationAsset} -> campaign ${campaignId}`
-    );
+    logger.info('Contribution indexed', {
+      campaign_id: campaignId,
+      amount: destinationAmount,
+      asset: destinationAsset,
+      tx_hash: txHash,
+    });
   } catch (err) {
     try {
       await client.query('ROLLBACK');
     } catch {
       // ignore rollback errors after failed work
     }
-    console.error('[monitor] Failed to index contribution:', err.message);
+    logger.error('Failed to index contribution', {
+      campaign_id: campaignId,
+      tx_hash: txHash,
+      error: err.message,
+    });
   } finally {
     client.release();
   }
@@ -113,7 +131,7 @@ async function startLedgerMonitor() {
     watchCampaignWallet(campaign.id, campaign.wallet_public_key);
   }
 
-  console.log(`[monitor] Watching ${rows.length} active campaign(s)`);
+  logger.info('Ledger monitor started', { active_campaigns: rows.length });
 }
 
 module.exports = { startLedgerMonitor, watchCampaignWallet, handlePayment };
