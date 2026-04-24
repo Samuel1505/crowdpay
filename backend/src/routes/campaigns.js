@@ -6,6 +6,7 @@ const {
   getCampaignBalance,
   getSupportedAssetCodes,
 } = require('../services/stellarService');
+const { encryptSecret } = require('../services/walletService');
 const { watchCampaignWallet } = require('../services/ledgerMonitor');
 const SUPPORTED_ASSETS = getSupportedAssetCodes();
 
@@ -58,13 +59,14 @@ router.post('/', requireAuth, async (req, res) => {
 
   // Create the on-chain campaign wallet
   const wallet = await createCampaignWallet(creatorPublicKey);
+  const encryptedSecret = encryptSecret(wallet.secret);
 
   const { rows } = await db.query(
     `INSERT INTO campaigns
-       (title, description, target_amount, asset_type, wallet_public_key, creator_id, deadline)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (title, description, target_amount, asset_type, wallet_public_key, wallet_secret_encrypted, creator_id, deadline)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [title, description, target_amount, asset_type, wallet.publicKey, req.user.userId, deadline]
+    [title, description, target_amount, asset_type, wallet.publicKey, encryptedSecret, req.user.userId, deadline]
   );
 
   // Start monitoring the new wallet immediately

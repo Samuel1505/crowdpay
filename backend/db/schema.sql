@@ -13,18 +13,19 @@ CREATE TABLE users (
 );
 
 CREATE TABLE campaigns (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  creator_id          UUID NOT NULL REFERENCES users(id),
-  title               TEXT NOT NULL,
-  description         TEXT,
-  target_amount       NUMERIC(20, 7) NOT NULL,
-  raised_amount       NUMERIC(20, 7) NOT NULL DEFAULT 0,
-  asset_type          TEXT NOT NULL CHECK (asset_type IN ('XLM', 'USDC')),
-  wallet_public_key   TEXT UNIQUE NOT NULL,
-  status              TEXT NOT NULL DEFAULT 'active'
-                        CHECK (status IN ('active', 'funded', 'closed', 'withdrawn')),
-  deadline            DATE,
-  created_at          TIMESTAMPTZ DEFAULT NOW()
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id              UUID NOT NULL REFERENCES users(id),
+  title                   TEXT NOT NULL,
+  description             TEXT,
+  target_amount           NUMERIC(20, 7) NOT NULL,
+  raised_amount           NUMERIC(20, 7) NOT NULL DEFAULT 0,
+  asset_type              TEXT NOT NULL CHECK (asset_type IN ('XLM', 'USDC')),
+  wallet_public_key       TEXT UNIQUE NOT NULL,
+  wallet_secret_encrypted TEXT,
+  status                  TEXT NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active', 'funded', 'closed', 'withdrawn')),
+  deadline                DATE,
+  created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE contributions (
@@ -64,3 +65,4 @@ CREATE INDEX ON contributions (campaign_id);
 CREATE INDEX ON contributions (tx_hash);
 CREATE INDEX ON campaigns (status);
 CREATE INDEX ON campaigns (creator_id);
+CREATE INDEX ON campaigns (wallet_public_key);

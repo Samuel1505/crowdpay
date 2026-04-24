@@ -10,6 +10,8 @@ app.use(express.json());
 
 app.use('/api/users', require('./routes/users'));
 app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/wallets', require('./routes/wallets'));
+
 app.use('/api/contributions', require('./routes/contributions'));
 app.use('/api/withdrawals', require('./routes/withdrawals'));
 

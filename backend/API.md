@@ -162,3 +162,107 @@ List withdrawal requests and signature statuses for a campaign.
 - withdrawal request creation with multisig validation
 - withdrawal creator/platform approval flow
 - withdrawal denial paths (missing creator approval, insufficient signatures)
+
+---
+
+## Wallet Management
+
+### `GET /api/wallets/:campaignId/config`
+
+Get multisig configuration for a campaign wallet.
+
+**Authentication**: Required (campaign creator only)
+
+**Response** (`200`):
+```json
+{
+  "thresholds": {
+    "low_threshold": 1,
+    "med_threshold": 2,
+    "high_threshold": 2
+  },
+  "signers": [
+    {
+      "key": "GXXX...",
+      "weight": 1,
+      "type": "ed25519_public_key"
+    }
+  ]
+}
+```
+
+**Errors**:
+- `401` Unauthorized
+- `403` Not campaign creator
+- `404` Campaign not found
+
+### `GET /api/wallets/:campaignId/transactions`
+
+Get transaction history for a campaign wallet.
+
+**Authentication**: Required (campaign creator only)
+
+**Query Parameters**:
+- `limit` (optional): Number of transactions to return (default: 50)
+
+**Response** (`200`):
+```json
+[
+  {
+    "hash": "abc123...",
+    "created_at": "2026-04-24T09:30:00Z",
+    "source_account": "GXXX...",
+    "fee_charged": "100",
+    "operation_count": 1,
+    "memo": "crowdpay"
+  }
+]
+```
+
+### `GET /api/wallets/:campaignId/payments`
+
+Get payment operations for a campaign wallet (audit trail).
+
+**Authentication**: Required (campaign creator only)
+
+**Query Parameters**:
+- `limit` (optional): Number of payments to return (default: 100)
+
+**Response** (`200`):
+```json
+[
+  {
+    "id": "123456789",
+    "type": "payment",
+    "created_at": "2026-04-24T09:30:00Z",
+    "transaction_hash": "abc123...",
+    "from": "GXXX...",
+    "to": "GYYY...",
+    "amount": "50.0000000",
+    "asset_type": "USDC"
+  }
+]
+```
+
+### `POST /api/wallets/:campaignId/recover`
+
+Recover campaign wallet public key from encrypted secret.
+
+**Authentication**: Required (campaign creator only)
+
+**Response** (`200`):
+```json
+{
+  "publicKey": "GXXX..."
+}
+```
+
+**Errors**:
+- `400` No encrypted secret stored
+- `401` Unauthorized
+- `403` Not campaign creator
+- `404` Campaign not found
+
+⚠️ **Warning**: This endpoint should be heavily restricted in production environments.
+
+---
