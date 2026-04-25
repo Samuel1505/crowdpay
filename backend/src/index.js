@@ -18,6 +18,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50kb' }));
 
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/contributions', require('./routes/contributions'));

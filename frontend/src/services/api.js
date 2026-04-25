@@ -45,8 +45,10 @@ async function request(method, path, body, token, options = {}) {
 }
 
 export const api = {
-  register: (body) => request('POST', '/users/register', body),
-  login: (body) => request('POST', '/users/login', body),
+  register: (body) => request('POST', '/auth/register', body),
+  login: (body) => request('POST', '/auth/login', body),
+  forgotPassword: (body) => request('POST', '/auth/forgot-password', body),
+  resetPassword: (body) => request('POST', '/auth/reset-password', body),
 
   getCampaigns: () => request('GET', '/campaigns'),
   getCampaign: (id) => request('GET', `/campaigns/${id}`),
