@@ -40,6 +40,14 @@ async function authenticate(req) {
   }
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user || !req.user.is_admin) {
+    return res.status(403).json({ error: 'Requires admin role' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin };
 /**
  * API keys carry scope arrays. JWT sessions retain full access.
  * @returns {boolean} false if response was sent (403)

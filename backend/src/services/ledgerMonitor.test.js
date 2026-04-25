@@ -6,6 +6,7 @@ test('handlePayment updates stellar_transactions when a contribution row is crea
   const updates = [];
   const mockQuery = async (text, params) => {
     if (text.includes('SELECT id FROM contributions')) return { rows: [] };
+    if (text.includes('SELECT status FROM campaigns')) return { rows: [{ status: 'active' }] };
     if (text.includes('SELECT creator_id FROM campaigns')) {
       return { rows: [{ creator_id: 'user-creator' }] };
     }
@@ -22,6 +23,7 @@ test('handlePayment updates stellar_transactions when a contribution row is crea
   };
 
   const mockDb = {
+    query: mockQuery,
     connect: async () => ({
       query: mockQuery,
       release: () => {},

@@ -74,6 +74,10 @@ export const api = {
   rejectWithdrawal: (id, body, token) => request('POST', `/withdrawals/${id}/reject`, body || {}, token),
   getWithdrawalEvents: (id, token) => request('GET', `/withdrawals/${id}/events`, null, token),
 
+  getAdminStats: (token) => request('GET', '/admin/stats', null, token),
+  getAdminCampaigns: (token) => request('GET', '/admin/campaigns', null, token),
+  getAdminUsers: (token) => request('GET', '/admin/users', null, token),
+  updateCampaignStatus: (id, status, token) => request('PATCH', `/admin/campaigns/${id}/status`, { status }, token),
   listApiKeys: (token) => request('GET', '/api-keys', null, token),
   createApiKey: (body, token) => request('POST', '/api-keys', body, token),
   deleteApiKey: (id, token) => request('DELETE', `/api-keys/${id}`, null, token),

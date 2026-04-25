@@ -9,6 +9,7 @@ const {
 } = require('../services/stellarService');
 const { watchCampaignWallet } = require('../services/ledgerMonitor');
 const { insertWithdrawalPendingSignatures } = require('../services/stellarTransactionService');
+const { sendEmail } = require('../services/emailService');
 const SUPPORTED_ASSETS = getSupportedAssetCodes();
 
 function canPerformPlatformAction(userId) {
@@ -70,6 +71,33 @@ router.post('/cron/fail-expired', requireAuth, async (req, res) => {
   );
 
   res.json({ failedCampaigns: rows });
+});
+
+// Scheduled endpoint to send 48h deadline reminders
+router.post('/cron/reminders', requireAuth, async (req, res) => {
+  if (!canPerformPlatformAction(req.user.userId)) {
+    return res.status(403).json({ error: 'Only platform approver can run reminders' });
+  }
+
+  // Find campaigns ending in exactly 2 days that are still active
+  const { rows } = await db.query(
+    `SELECT c.id, c.title, c.deadline, u.email as creator_email
+     FROM campaigns c
+     JOIN users u ON c.creator_id = u.id
+     WHERE c.status = 'active'
+       AND c.deadline = CURRENT_DATE + INTERVAL '2 days'`
+  );
+
+  for (const campaign of rows) {
+    sendEmail({
+      to: campaign.creator_email,
+      subject: `Reminder: Campaign "${campaign.title}" ends in 48 hours`,
+      text: `Your campaign "${campaign.title}" is approaching its deadline on ${new Date(campaign.deadline).toDateString()}. 
+If your target is reached, you can request a withdrawal. Otherwise, contributions will be refunded.`
+    });
+  }
+
+  res.json({ remindersSent: rows.length });
 });
 
 // Trigger refund withdrawal requests for a failed campaign

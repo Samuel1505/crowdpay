@@ -94,7 +94,7 @@ test('POST /api/campaigns/:id/trigger-refunds creates refund requests for contri
   const app = buildApp({
     queryImpl,
     buildWithdrawalTransactionImpl: async () => 'unsigned-xdr',
-    insertWithdrawalPendingSignaturesImpl: async ({ withdrawalRequestId }) => {
+    insertWithdrawalPendingSignaturesImpl: async (client, { withdrawalRequestId }) => {
       created.push(withdrawalRequestId);
       return 'stellar-row-id';
     },

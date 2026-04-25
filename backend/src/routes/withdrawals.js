@@ -16,6 +16,7 @@ const {
   finalizeWithdrawalSubmitted,
   markWithdrawalFailed,
 } = require('../services/stellarTransactionService');
+const { sendEmail } = require('../services/emailService');
 const { emitWebhookEventForUser, WEBHOOK_EVENTS } = require('../services/webhookDispatcher');
 
 const ALLOWED_CAMPAIGN_STATUS_FOR_REQUEST = ['active', 'funded'];
@@ -339,6 +340,20 @@ router.post('/:id/approve/platform', requireAuth, async (req, res) => {
       signedXdr,
     });
     await client.query('COMMIT');
+
+    // Notify creator
+    const { rows: cRows } = await db.query(
+      `SELECT u.email FROM users u JOIN campaigns c ON c.creator_id = u.id WHERE c.id = $1`,
+      [requestRow.campaign_id]
+    );
+    if (cRows.length) {
+      sendEmail({
+        to: cRows[0].email,
+        subject: 'Withdrawal Approved',
+        text: `Your withdrawal for ${requestRow.amount} has been approved by the platform. Transaction Hash: ${txHash}`
+      });
+    }
+
     const withdrawalRow = updated[0];
     setImmediate(() => {
       db.query('SELECT creator_id FROM campaigns WHERE id = $1', [withdrawalRow.campaign_id])
@@ -466,6 +481,19 @@ router.post('/:id/reject', requireAuth, async (req, res) => {
       metadata: {},
     });
     await client.query('COMMIT');
+
+    const { rows: cRows } = await db.query(
+      `SELECT u.email FROM users u JOIN campaigns c ON c.creator_id = u.id WHERE c.id = $1`,
+      [requestRow.campaign_id]
+    );
+    if (cRows.length) {
+      sendEmail({
+        to: cRows[0].email,
+        subject: 'Withdrawal Rejected',
+        text: `Your withdrawal request has been rejected by the platform. Reason: ${reason}`
+      });
+    }
+
     res.json(updated[0]);
   } catch (err) {
     await client.query('ROLLBACK');
