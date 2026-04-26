@@ -32,10 +32,37 @@ router.get('/campaigns', async (req, res) => {
   res.json(rows);
 });
 
+router.get('/milestones', async (req, res) => {
+  const status = req.query.status ? String(req.query.status) : null;
+  const allowedStatuses = ['pending', 'approved', 'released'];
+  if (status && !allowedStatuses.includes(status)) {
+    return res.status(400).json({ error: `status must be one of: ${allowedStatuses.join(', ')}` });
+  }
+
+  const params = [];
+  let where = 'WHERE 1=1';
+  if (status) {
+    params.push(status);
+    where += ` AND m.status = $${params.length}`;
+  }
+
+  const { rows } = await db.query(
+    `SELECT m.*, c.title AS campaign_title, c.status AS campaign_status, c.asset_type,
+            c.raised_amount, u.email AS creator_email, u.name AS creator_name
+     FROM milestones m
+     JOIN campaigns c ON c.id = m.campaign_id
+     JOIN users u ON u.id = c.creator_id
+     ${where}
+     ORDER BY m.created_at DESC`,
+    params
+  );
+  res.json(rows);
+});
+
 // PATCH /campaigns/:id/status
 router.patch('/campaigns/:id/status', async (req, res) => {
   const { status } = req.body;
-  if (!['active', 'funded', 'closed', 'withdrawn', 'failed'].includes(status)) {
+  if (!['active', 'funded', 'in_progress', 'completed', 'closed', 'withdrawn', 'failed'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
   const { rows } = await db.query(
@@ -49,7 +76,7 @@ router.patch('/campaigns/:id/status', async (req, res) => {
 // GET /users
 router.get('/users', async (req, res) => {
   const { rows } = await db.query(`
-    SELECT u.id, u.name, u.email, u.wallet_public_key, u.is_admin, u.created_at,
+    SELECT u.id, u.name, u.email, u.wallet_public_key, u.role, u.created_at,
            (SELECT COUNT(*) FROM campaigns WHERE creator_id = u.id) as campaign_count,
            (SELECT COUNT(*) FROM contributions WHERE sender_public_key = u.wallet_public_key) as contribution_count
     FROM users u

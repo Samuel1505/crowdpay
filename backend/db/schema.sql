@@ -8,7 +8,9 @@ CREATE TABLE users (
   password_hash           TEXT NOT NULL,
   name                    TEXT NOT NULL,
   wallet_public_key       TEXT UNIQUE NOT NULL,
-  wallet_secret_encrypted TEXT NOT NULL,  -- encrypt with KMS in production
+  wallet_secret_encrypted TEXT NOT NULL,
+  role                    TEXT NOT NULL DEFAULT 'contributor'
+                          CHECK (role IN ('contributor', 'creator', 'admin')),
   is_admin                BOOLEAN DEFAULT FALSE,
   created_at              TIMESTAMPTZ DEFAULT NOW()
 );
@@ -23,7 +25,7 @@ CREATE TABLE campaigns (
   asset_type          TEXT NOT NULL CHECK (asset_type IN ('XLM', 'USDC')),
   wallet_public_key   TEXT UNIQUE NOT NULL,
   status              TEXT NOT NULL DEFAULT 'active'
-                        CHECK (status IN ('active', 'funded', 'closed', 'withdrawn')),
+                        CHECK (status IN ('active', 'funded', 'in_progress', 'completed', 'closed', 'withdrawn', 'failed')),
   deadline            DATE,
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
@@ -176,13 +178,36 @@ CREATE TABLE milestones (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id     UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
   title           TEXT NOT NULL,
+  description     TEXT,
+  release_percentage NUMERIC(7, 4) NOT NULL CHECK (release_percentage > 0 AND release_percentage <= 100),
   sort_order      INT NOT NULL DEFAULT 0,
+  evidence_url    TEXT,
+  destination_key TEXT,
+  review_note     TEXT,
   status          TEXT NOT NULL DEFAULT 'pending'
-                    CHECK (status IN ('pending', 'approved')),
-  created_at      TIMESTAMPTZ DEFAULT NOW()
+                    CHECK (status IN ('pending', 'approved', 'released')),
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  completed_at    TIMESTAMPTZ,
+  approved_at     TIMESTAMPTZ,
+  released_at     TIMESTAMPTZ
 );
 
 CREATE INDEX milestones_campaign_idx ON milestones (campaign_id);
+ALTER TABLE withdrawal_requests
+  ADD COLUMN milestone_id UUID REFERENCES milestones(id);
+
+CREATE INDEX withdrawal_requests_milestone_idx ON withdrawal_requests (milestone_id);
+
+CREATE TABLE campaign_updates (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id     UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  author_id       UUID NOT NULL REFERENCES users(id),
+  title           TEXT NOT NULL,
+  body            TEXT NOT NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX campaign_updates_campaign_idx ON campaign_updates (campaign_id, created_at DESC);
 
 CREATE TABLE password_reset_tokens (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -205,3 +230,16 @@ CREATE TABLE ledger_stream_cursors (
 );
 
 CREATE INDEX ledger_stream_cursors_wallet_idx ON ledger_stream_cursors (wallet_public_key);
+
+-- Refresh tokens for JWT session management
+CREATE TABLE refresh_tokens (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash      TEXT NOT NULL UNIQUE,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  revoked_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX refresh_tokens_user_active_idx ON refresh_tokens (user_id) WHERE revoked_at IS NULL;
+CREATE INDEX refresh_tokens_token_hash_idx ON refresh_tokens (token_hash);
