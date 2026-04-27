@@ -39,6 +39,7 @@ export default function Campaign() {
   const [showModal, setShowModal] = useState(false);
   const [contributed, setContributed] = useState(false);
   const [showCreatedBanner, setShowCreatedBanner] = useState(!!location.state?.created);
+  const [coverUploadError, setCoverUploadError] = useState(location.state?.coverUploadError || '');
   const [updates, setUpdates] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [updateForm, setUpdateForm] = useState({ title: '', body: '' });
@@ -57,7 +58,7 @@ export default function Campaign() {
   }, [id, contributed]);
 
   useEffect(() => {
-    if (location.state?.created) {
+    if (location.state?.created || location.state?.coverUploadError) {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -125,10 +126,22 @@ export default function Campaign() {
           </button>
         </div>
       )}
+      {coverUploadError && (
+        <div className="alert alert--warning" style={{ marginBottom: '1.25rem' }} role="status">
+          <strong>Cover image upload failed:</strong> {coverUploadError}
+        </div>
+      )}
       {campaign.status === 'failed' && (
         <div className="alert alert--error" style={{ marginBottom: '1.25rem' }} role="status">
           <strong>This campaign did not reach its goal.</strong> Contributions are closed and refunds can be requested.
         </div>
+      )}
+      {campaign.cover_image_url && (
+        <img
+          src={campaign.cover_image_url}
+          alt={campaign.title}
+          style={styles.detailCoverImage}
+        />
       )}
       <div style={styles.header}>
         <span style={styles.asset}>{campaign.asset_type}</span>
@@ -302,6 +315,7 @@ const styles = {
   walletInfo: { background: '#f8f8f8', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' },
   walletLabel: { fontSize: '0.75rem', fontWeight: 600, color: '#888', textTransform: 'uppercase' },
   walletKey: { fontSize: '0.8rem', color: '#555', wordBreak: 'break-all' },
+  detailCoverImage: { width: '100%', borderRadius: '14px', marginBottom: '1.5rem', objectFit: 'cover', maxHeight: '360px' },
   sectionTitle: { fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' },
   list: { display: 'flex', flexDirection: 'column', gap: '0.5rem' },
   row: { display: 'flex', justifyContent: 'space-between', background: '#fff', border: '1px solid #eee', borderRadius: '6px', padding: '0.6rem 0.85rem' },
